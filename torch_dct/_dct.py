@@ -2,33 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-
-def dct1(x):
-    """
-    Discrete Cosine Transform, Type I
-
-    :param x: the input signal
-    :return: the DCT-I of the signal over the last dimension
-    """
-    x_shape = x.shape
-    x = x.view(-1, x_shape[-1])
-
-    return torch.rfft(torch.cat([x, x.flip([1])[:, 1:-1]], dim=1), 1)[:, :, 0].view(*x_shape)
-
-
-def idct1(X):
-    """
-    The inverse of DCT-I, which is just a scaled DCT-I
-
-    Our definition if idct1 is such that idct1(dct1(x)) == x
-
-    :param X: the input signal
-    :return: the inverse DCT-I of the signal over the last dimension
-    """
-    n = X.shape[-1]
-    return dct1(X) / (2 * (n - 1))
-
-
 def dct(x, norm=None):
     """
     Discrete Cosine Transform, Type II (a.k.a. the DCT)
@@ -46,7 +19,8 @@ def dct(x, norm=None):
 
     v = torch.cat([x[:, ::2], x[:, 1::2].flip([1])], dim=1)
 
-    Vc = torch.rfft(v, 1, onesided=False)
+    #Vc = torch.rfft(v, 1, onesided=False)
+    Vc = torch.view_as_real(torch.fft.fft(v, dim=1))
 
     k = - torch.arange(N, dtype=x.dtype, device=x.device)[None, :] * np.pi / (2 * N)
     W_r = torch.cos(k)
@@ -98,7 +72,8 @@ def idct(X, norm=None):
 
     V = torch.cat([V_r.unsqueeze(2), V_i.unsqueeze(2)], dim=2)
 
-    v = torch.irfft(V, 1, onesided=False)
+    #v = torch.irfft(V, 1, onesided=False)
+    v= torch.fft.irfft(torch.view_as_complex(V), n=V.shape[1], dim=1)
     x = v.new_zeros(v.shape)
     x[:, ::2] += v[:, :N - (N // 2)]
     x[:, 1::2] += v.flip([1])[:, :N // 2]
